@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leave us a review</title>
+<link rel="stylesheet" href="/public/styles.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="card ask-hero" style="margin-top:40px">
+    <div class="stars">★★★★★</div>
+    <h1 id="askBiz">Enjoyed your visit?</h1>
+    <p class="sub" id="askSub">Your review helps our small business more than you know. It takes 30 seconds.</p>
+    <a class="ask-cta" id="askBtn" href="#">Leave us a Google review</a>
+    <p class="sub" style="margin-top:24px">Thank you for supporting local 💙</p>
+  </div>
+  <p class="sub" style="text-align:center">Powered by <b>ReviewPilot AI</b></p>
+</main>
+<script>
+(function () {
+  function param(n) {
+    var m = new URLSearchParams(window.location.search).get(n) || '';
+    return m.slice(0, 200);
+  }
+  var biz = param('b');
+  var url = param('u');
+  var bizEl = document.getElementById('askBiz');
+  var btn = document.getElementById('askBtn');
+  var sub = document.getElementById('askSub');
+
+  if (biz) {
+    bizEl.textContent = 'Enjoyed your visit to ' + biz + '?';
+    document.title = 'Review ' + biz;
+  }
+  if (url && (url.indexOf('http://') === 0 || url.indexOf('https://') === 0)) {
+    btn.href = url;
+  } else {
+    btn.style.display = 'none';
+    sub.textContent = 'Sorry — this review link looks incomplete. Please ask the business for a fresh link.';
+  }
+})();
+</script>
+</body>
+</html>

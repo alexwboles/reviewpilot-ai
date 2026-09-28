@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReviewPilot AI — Get more 5-star reviews</title>
+<link rel="stylesheet" href="/public/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="logo">R</div>
+    <div class="brand">ReviewPilot AI <small>review booster for local businesses</small></div>
+    <nav class="nav" id="nav">
+      <button data-view="dashboard" class="active">Dashboard</button>
+      <button data-view="get">Get Reviews</button>
+      <button data-view="reply">Reply to Reviews</button>
+      <button data-view="customers">Customers</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- DASHBOARD -->
+  <section id="view-dashboard">
+    <div class="card">
+      <h2>Business dashboard</h2>
+      <p class="sub">Your review pipeline at a glance. Data is stored privately in this browser.</p>
+      <div class="grid cols-4" id="statCards"></div>
+    </div>
+    <div class="card">
+      <h2>Nag watch <span class="badge warn">14-day rule</span></h2>
+      <p class="sub">Customers asked in the last 14 days — hold off asking them again.</p>
+      <div id="nagList"><p class="sub">Nobody in the nag window. You're clear to ask.</p></div>
+    </div>
+    <div class="card">
+      <h2>Logged reviews</h2>
+      <p class="sub">Keep a record of reviews you've received (paste them here to track your average).</p>
+      <div class="row">
+        <select id="logStars" style="width:auto">
+          <option value="5">★★★★★ (5)</option>
+          <option value="4">★★★★ (4)</option>
+          <option value="3">★★★ (3)</option>
+          <option value="2">★★ (2)</option>
+          <option value="1">★ (1)</option>
+        </select>
+        <input type="text" id="logText" placeholder="Short note, e.g. 'Google review from Sarah'" style="flex:1; min-width:200px">
+        <button class="btn small" id="logReviewBtn">Log review</button>
+      </div>
+      <div id="reviewLog"></div>
+    </div>
+  </section>
+
+  <!-- GET REVIEWS -->
+  <section id="view-get" class="hidden">
+    <div class="card">
+      <h2>Review request link generator</h2>
+      <p class="sub">Create a beautiful one-tap page customers can open on their phone. Print the QR code for your counter or receipts.</p>
+      <label for="bizName">Business name</label>
+      <input type="text" id="bizName" placeholder="e.g. Sunny Side Bakery">
+      <label for="reviewUrl">Google review link <span class="badge">how to find it</span></label>
+      <input type="url" id="reviewUrl" placeholder="https://g.page/r/... or Google Maps share link">
+      <p class="sub" style="margin-top:6px">In Google Maps: open your business profile → Share → copy the link, or search "Google review link generator" for your place ID link.</p>
+      <button class="btn" id="genLinkBtn">Generate link + QR code</button>
+      <div id="genError"></div>
+      <div id="genResult" class="hidden">
+        <h3>Your shareable review page</h3>
+        <div class="linkbox" id="askLink"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn secondary small" id="copyLinkBtn">Copy link</button>
+          <button class="btn secondary small" id="openAskBtn">Preview page</button>
+          <button class="btn ghost small" id="dlQrBtn">Download QR (SVG)</button>
+        </div>
+        <div id="qrBox"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Quick ask logger</h2>
+      <p class="sub">Just asked someone in person? Log it here so the 14-day anti-nag rule protects them.</p>
+      <div class="row">
+        <input type="text" id="quickAskName" placeholder="Customer name" style="flex:1; min-width:160px">
+        <input type="text" id="quickAskContact" placeholder="Email or phone (optional)" style="flex:1; min-width:160px">
+        <button class="btn small" id="quickAskBtn">Log ask</button>
+      </div>
+      <div id="quickAskMsg"></div>
+    </div>
+  </section>
+
+  <!-- REPLY -->
+  <section id="view-reply" class="hidden">
+    <div class="card">
+      <h2>AI reply drafter <span id="aiBadge"></span></h2>
+      <p class="sub">Paste a customer review, pick the stars, get three reply options in seconds. Works offline — no API key needed.</p>
+      <label for="repBiz">Business name (optional)</label>
+      <input type="text" id="repBiz" placeholder="e.g. Sunny Side Bakery">
+      <div class="grid cols-2">
+        <div>
+          <label for="repName">Reviewer name (optional)</label>
+          <input type="text" id="repName" placeholder="e.g. Sarah">
+        </div>
+        <div>
+          <label for="repStars">Star rating</label>
+          <select id="repStars">
+            <option value="5">★★★★★ (5)</option>
+            <option value="4">★★★★ (4)</option>
+            <option value="3">★★★ (3)</option>
+            <option value="2">★★ (2)</option>
+            <option value="1">★ (1)</option>
+          </select>
+        </div>
+      </div>
+      <label for="repText">Customer review</label>
+      <textarea id="repText" placeholder="Paste the review text here..."></textarea>
+      <button class="btn" id="draftBtn">Draft 3 replies</button>
+      <div id="draftError"></div>
+      <div id="draftResult"></div>
+    </div>
+  </section>
+
+  <!-- CUSTOMERS -->
+  <section id="view-customers" class="hidden">
+    <div class="card">
+      <h2>Customer list</h2>
+      <p class="sub">Import from CSV (columns: <code>name,email,phone</code> — any order). Asks are tracked so nobody gets nagged.</p>
+      <label for="csvFile">Upload CSV file</label>
+      <input type="file" id="csvFile" accept=".csv,text/csv">
+      <label for="csvText">…or paste CSV here</label>
+      <textarea id="csvText" placeholder="name,email,phone&#10;Sarah Lee,sarah@example.com,555-0101&#10;Tom Baker,tom@example.com,"></textarea>
+      <div class="row">
+        <button class="btn" id="importBtn">Import customers</button>
+        <button class="btn ghost" id="exportBtn">Export JSON</button>
+        <button class="btn ghost" id="clearBtn">Clear all data</button>
+      </div>
+      <div id="importMsg"></div>
+    </div>
+    <div class="card">
+      <h2>Customers <span class="badge" id="custCount"></span></h2>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="custTable"></tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>ReviewPilot AI · free &amp; open source · your data never leaves this browser</footer>
+
+<script src="/public/vendor/qrcode.min.js"></script>
+<script src="/lib/logic.js"></script>
+<script src="/public/app.js"></script>
+</body>
+</html>
