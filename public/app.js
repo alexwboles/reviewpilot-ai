@@ -6,7 +6,8 @@
     customers: 'rp_customers',
     asks: 'rp_asks',
     reviews: 'rp_reviews',
-    settings: 'rp_settings'
+    settings: 'rp_settings',
+    drafts: 'rp_drafts'
   };
 
   function load(key, fallback) {
@@ -29,13 +30,25 @@
     customers: load(LS.customers, []),
     asks: load(LS.asks, {}),
     reviews: load(LS.reviews, []),
-    settings: load(LS.settings, {})
+    settings: load(LS.settings, {}),
+    drafts: load(LS.drafts, [])
   };
   function persist() {
     save(LS.customers, state.customers);
     save(LS.asks, state.asks);
     save(LS.reviews, state.reviews);
     save(LS.settings, state.settings);
+    save(LS.drafts, state.drafts);
+  }
+
+  // Settings with safe defaults.
+  function nagWindow() {
+    var n = parseInt(state.settings.nagDays, 10);
+    return (isNaN(n) || n < 1) ? 14 : Math.min(365, n);
+  }
+  function weeklyGoal() {
+    var n = parseInt(state.settings.weeklyGoal, 10);
+    return (isNaN(n) || n < 1) ? 10 : n;
   }
 
   // ---- Navigation -------------------------------------------------------
@@ -71,17 +84,20 @@
       return '<div class="card stat"><div class="num">' + esc(c[0]) + '</div><div class="lbl">' + esc(c[1]) + '</div></div>';
     }).join('');
 
+    var win = nagWindow();
+    el('nagBadge').textContent = win + '-day rule';
+    el('nagSub').textContent = 'Customers asked in the last ' + win + ' days — hold off asking them again.';
     var nagged = Object.keys(state.asks)
       .map(function (k) {
         var c = state.customers.find(function (x) { return x.key === k; });
         return { key: k, name: c ? c.name : k, date: state.asks[k], days: RP.daysSinceAsk(state.asks, k) };
       })
-      .filter(function (x) { return x.days < RP.NAG_WINDOW_DAYS; })
+      .filter(function (x) { return x.days < win; })
       .sort(function (a, b) { return a.days - b.days; });
 
     el('nagList').innerHTML = nagged.length ? '<table><thead><tr><th>Customer</th><th>Asked</th><th>Wait</th></tr></thead><tbody>' +
       nagged.map(function (x) {
-        var wait = Math.ceil(RP.NAG_WINDOW_DAYS - x.days);
+        var wait = Math.ceil(win - x.days);
         return '<tr><td>' + esc(x.name) + '</td><td>' + esc(fmtDate(x.date)) + '</td>' +
           '<td><span class="badge warn">wait ' + wait + ' day' + (wait === 1 ? '' : 's') + '</span></td></tr>';
       }).join('') + '</tbody></table>'
@@ -92,6 +108,41 @@
         return '<tr><td class="stars">' + '★'.repeat(r.stars) + '</td><td>' + esc(r.text) + '</td><td>' + esc(fmtDate(r.at)) + '</td></tr>';
       }).join('') + '</tbody></table>'
       : '<p class="sub">No reviews logged yet.</p>';
+
+    renderAskNext();
+    renderGoal();
+  }
+
+  // ---- Who to ask next ------------------------------------------------------
+  function renderAskNext() {
+    var box = el('askNext');
+    if (!box) return;
+    if (!state.customers.length) { box.innerHTML = '<p class="sub">Import customers to get suggestions.</p>'; return; }
+    var picks = RP.suggestNextAsk(state.customers, state.asks, 5, nagWindow());
+    if (!picks.length) { box.innerHTML = '<p class="sub">Everyone is inside the nag window — you\'re fully covered.</p>'; return; }
+    box.innerHTML = '<table><thead><tr><th>Customer</th><th>Contact</th><th>Last asked</th><th></th></tr></thead><tbody>' +
+      picks.map(function (c, i) {
+        var asked = state.asks[c.key];
+        return '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.email || c.phone || '—') + '</td><td>' +
+          esc(asked ? fmtDate(asked) : 'never') + '</td>' +
+          '<td><button class="btn secondary small" data-asknext="' + i + '">Mark asked</button></td></tr>';
+      }).join('') + '</tbody></table>';
+    box.querySelectorAll('[data-asknext]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var c = picks[parseInt(btn.dataset.asknext, 10)];
+        state.asks = RP.recordAsk(state.asks, c.key);
+        persist(); renderDashboard(); renderCustomers();
+      });
+    });
+  }
+
+  // ---- Weekly ask goal ---------------------------------------------------------
+  function renderGoal() {
+    var g = RP.goalProgress(state.asks, weeklyGoal());
+    el('goalFill').style.width = g.pct + '%';
+    el('goalBadge').textContent = g.pct + '%';
+    el('goalText').textContent = g.count + ' of ' + g.goal + ' asks this week' +
+      (g.remaining ? ' — ' + g.remaining + ' to go.' : ' — goal hit. Nice work.');
   }
 
   el('logReviewBtn').addEventListener('click', function () {
@@ -163,8 +214,9 @@
     msg.innerHTML = '';
     if (!name && !contact) { msg.innerHTML = '<p class="notice err">Enter a name or contact first.</p>'; return; }
     var key = (contact || name).toLowerCase();
-    if (RP.isNag(state.asks, key)) {
-      msg.innerHTML = '<p class="notice">' + esc(RP.nagMessage(state.asks, key)) + ' Log again anyway?</p>';
+    var win = nagWindow();
+    if (RP.isNag(state.asks, key, win)) {
+      msg.innerHTML = '<p class="notice">' + esc(RP.nagMessage(state.asks, key, win)) + ' Log again anyway?</p>';
     }
     state.asks = RP.recordAsk(state.asks, key);
     // Auto-add to customers if unknown
@@ -173,7 +225,7 @@
     }
     persist();
     el('quickAskName').value = ''; el('quickAskContact').value = '';
-    msg.innerHTML = '<p class="notice ok">Ask logged for <b>' + esc(name || contact) + '</b>. They\'re protected for 14 days.</p>';
+    msg.innerHTML = '<p class="notice ok">Ask logged for <b>' + esc(name || contact) + '</b>. They\'re protected for ' + win + ' days.</p>';
     renderDashboard();
   });
 
@@ -231,7 +283,42 @@
         });
       });
     });
+
+    // Log the draft so it can be re-copied later without re-drafting.
+    state.drafts.unshift(RP.draftLogEntry(payload, data.tones));
+    state.drafts = state.drafts.slice(0, 20);
+    persist();
+    renderDraftLog();
   });
+
+  // ---- Recent drafts -------------------------------------------------------------
+  function renderDraftLog() {
+    var box = el('draftLog');
+    if (!box) return;
+    if (!state.drafts.length) {
+      box.innerHTML = '<p class="sub">No drafts yet — draft a reply above and it lands here.</p>';
+      return;
+    }
+    box.innerHTML = state.drafts.map(function (d, i) {
+      return '<div class="draft-entry"><div class="draft-meta"><span class="stars">' + '★'.repeat(d.stars) + '</span> ' +
+        '<strong>' + esc(d.name || 'Customer') + '</strong> <span class="sub">' + esc(fmtDate(d.at)) + '</span></div>' +
+        '<p class="sub draft-review">“' + esc(d.review || '(no review text)') + '”</p>' +
+        '<div class="row">' + ['professional', 'friendly', 'witty'].map(function (t) {
+          return '<button class="btn secondary small" data-dcopy="' + i + '-' + t + '">Copy ' + t + '</button>';
+        }).join('') + '</div></div>';
+    }).join('');
+    box.querySelectorAll('[data-dcopy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var parts = btn.dataset.dcopy.split('-');
+        var d = state.drafts[parseInt(parts[0], 10)];
+        if (!d) return;
+        navigator.clipboard.writeText(d[parts[1]] || '').then(function () {
+          btn.textContent = 'Copied ✓';
+          setTimeout(function () { btn.textContent = 'Copy ' + parts[1]; }, 1500);
+        });
+      });
+    });
+  }
 
   // ---- Customers -----------------------------------------------------------------
   el('importBtn').addEventListener('click', function () {
@@ -265,18 +352,22 @@
   });
 
   el('exportBtn').addEventListener('click', function () {
-    var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'reviewpilot-data.json';
-    a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+    downloadBlob('reviewpilot-data.json', JSON.stringify(state, null, 2), 'application/json');
+  });
+
+  el('exportCsvBtn').addEventListener('click', function () {
+    if (!state.customers.length) {
+      el('importMsg').innerHTML = '<p class="notice err">No customers to export yet.</p>';
+      return;
+    }
+    downloadBlob('reviewpilot-customers.csv', RP.customersToCSV(state.customers), 'text/csv;charset=utf-8');
+    el('importMsg').innerHTML = '<p class="notice ok">Exported <b>' + state.customers.length + '</b> customer(s) to CSV.</p>';
   });
 
   el('clearBtn').addEventListener('click', function () {
     if (!confirm('Clear ALL ReviewPilot data in this browser?')) return;
-    state = { customers: [], asks: {}, reviews: [], settings: {} };
-    persist(); renderCustomers(); renderDashboard();
+    state = { customers: [], asks: {}, reviews: [], settings: {}, drafts: [] };
+    persist(); renderCustomers(); renderDashboard(); renderDraftLog();
   });
 
   function renderCustomers() {
@@ -286,16 +377,17 @@
       tb.innerHTML = '<tr><td colspan="5" class="sub">No customers yet — import a CSV above.</td></tr>';
       return;
     }
+    var win = nagWindow();
     tb.innerHTML = state.customers.map(function (c, i) {
       var asked = state.asks[c.key];
-      var nag = RP.isNag(state.asks, c.key);
+      var nag = RP.isNag(state.asks, c.key, win);
       var status = !asked
         ? '<span class="badge">not asked</span>'
         : nag
           ? '<span class="badge warn">asked ' + Math.floor(RP.daysSinceAsk(state.asks, c.key)) + 'd ago</span>'
           : '<span class="badge ok">asked ' + esc(fmtDate(asked)) + '</span>';
       var action = nag
-        ? '<button class="btn ghost small" disabled title="' + esc(RP.nagMessage(state.asks, c.key) || '') + '">Nag-protected</button>'
+        ? '<button class="btn ghost small" disabled title="' + esc(RP.nagMessage(state.asks, c.key, win) || '') + '">Nag-protected</button>'
         : '<button class="btn secondary small" data-ask="' + i + '">Mark asked</button>';
       return '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.email) + '</td><td>' + esc(c.phone) +
         '</td><td>' + status + '</td><td>' + action + '</td></tr>';
@@ -304,8 +396,8 @@
     tb.querySelectorAll('[data-ask]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var c = state.customers[parseInt(btn.dataset.ask, 10)];
-        if (RP.isNag(state.asks, c.key)) {
-          alert(RP.nagMessage(state.asks, c.key));
+        if (RP.isNag(state.asks, c.key, nagWindow())) {
+          alert(RP.nagMessage(state.asks, c.key, nagWindow()));
           return;
         }
         state.asks = RP.recordAsk(state.asks, c.key);
@@ -314,6 +406,30 @@
     });
   }
 
+  function downloadBlob(filename, text, type) {
+    var blob = new Blob([text], { type: type });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  }
+
   // ---- Boot -------------------------------------------------------------------------
+  el('nagDays').value = nagWindow();
+  el('nagDays').addEventListener('change', function () {
+    var n = parseInt(el('nagDays').value, 10);
+    state.settings.nagDays = (isNaN(n) || n < 1) ? 14 : Math.min(365, n);
+    el('nagDays').value = state.settings.nagDays;
+    persist(); renderDashboard();
+  });
+  el('weeklyGoal').value = weeklyGoal();
+  el('weeklyGoal').addEventListener('change', function () {
+    var n = parseInt(el('weeklyGoal').value, 10);
+    state.settings.weeklyGoal = (isNaN(n) || n < 1) ? 10 : n;
+    el('weeklyGoal').value = state.settings.weeklyGoal;
+    persist(); renderDashboard();
+  });
   renderDashboard();
+  renderDraftLog();
 })();

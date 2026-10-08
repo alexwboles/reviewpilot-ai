@@ -119,6 +119,19 @@ button { font: inherit; }
 .notice.err { background: var(--bad-soft); border-color: #f0c4bf; color: var(--bad); }
 .notice.ok { background: var(--good-soft); border-color: #c2e3cf; color: var(--good); }
 
+/* ---------- goal bar & draft log ---------- */
+.goalbar {
+  height: 16px; background: #f1ebdc; border: 1px solid var(--line);
+  border-radius: 0; overflow: hidden; margin: .6rem 0;
+}
+.goalfill { height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+.draft-entry {
+  border: 1px solid var(--line); border-radius: 0; background: #fff;
+  padding: .8rem 1rem; margin-bottom: .7rem;
+}
+.draft-meta { display: flex; gap: .5rem; align-items: baseline; }
+.draft-review { margin: .4rem 0 .6rem; font-style: italic; }
+
 /* ---------- forms ---------- */
 .row { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin: .4rem 0; }
 label { display: block; font-size: .82rem; font-weight: 650; color: var(--ink-soft); margin: .9rem 0 .35rem; }

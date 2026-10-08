@@ -103,6 +103,34 @@ if(zero.askRate!==0||zero.avgRating!==null) throw new Error('empty stats');
 console.log('stats ok');" >/dev/null 2>&1 \
   && ok "dashboard stats math correct (incl. empty state)" || bad "stats math failed"
 
+echo "== e2e flow 7: new features (CSV export, ask-next, goal, drafts, custom nag window) =="
+node -e "
+const RP=require('./lib/logic');
+// CSV export round-trips through the importer
+const csv=RP.customersToCSV([{name:'Ann',email:'ann@x.com',phone:'1'},{name:'Bob',email:'',phone:''}]);
+const back=RP.parseCSV(csv);
+if(back.length!==2||back[0].name!=='Ann'||back[0].email!=='ann@x.com') throw new Error('csv round-trip: '+csv);
+// ask-next: never-asked prioritized, nag-protected excluded
+const custs=[{key:'a',name:'Amy'},{key:'b',name:'Ben'},{key:'c',name:'Cat'}];
+let asks={}; asks=RP.recordAsk(asks,'a');
+const picks=RP.suggestNextAsk(custs,asks,5);
+if(picks.length!==2||picks.some(p=>p.key==='a')) throw new Error('ask-next picks wrong');
+// goal: 3 recent asks vs goal 5
+const gasks={}; ['x','y','z'].forEach(k=>{Object.assign(gasks,RP.recordAsk(gasks,k));});
+const g=RP.goalProgress(gasks,5);
+if(g.count!==3||g.remaining!==2||g.pct!==60) throw new Error('goal: '+JSON.stringify(g));
+// draft log entry keeps tones + metadata
+const d=RP.draftLogEntry({review:'Loved it',stars:5,name:'Maya',business:'Acme'},{professional:'P',friendly:'F',witty:'W'});
+if(d.stars!==5||d.name!=='Maya'||d.review!=='Loved it'||d.witty!=='W') throw new Error('draft entry');
+// custom nag window changes behavior vs default
+let n={}; n=RP.recordAsk(n,'w@x.com');
+if(!RP.isNag(n,'w@x.com')||!RP.isNag(n,'w@x.com',3)) throw new Error('should nag');
+const old={}; old['o@x.com']=new Date(Date.now()-10*24*3600*1000).toISOString();
+if(!RP.isNag(old,'o@x.com',30)) throw new Error('10d ago should nag with 30d window');
+if(RP.isNag(old,'o@x.com',7)) throw new Error('10d ago should be clear with 7d window');
+console.log('flow7 ok');" >/dev/null 2>&1 \
+  && ok "CSV export / ask-next / weekly goal / draft log / custom nag window" || bad "flow 7 failed"
+
 kill $SRV 2>/dev/null; trap - EXIT; wait $SRV 2>/dev/null
 
 echo ""

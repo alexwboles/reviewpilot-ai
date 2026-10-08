@@ -35,9 +35,28 @@
     </div>
     <div class="grid cols-4" id="statCards"></div>
 
+    <div class="grid cols-2">
+      <div class="card">
+        <div class="card-head"><h2>Who to ask next</h2><span class="badge ok">nag-safe picks</span></div>
+        <p class="sub">Customers outside the nag window — never-asked first, then longest since last ask.</p>
+        <div id="askNext"><p class="sub">Import customers to get suggestions.</p></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Weekly ask goal</h2><span class="badge" id="goalBadge">0%</span></div>
+        <div class="goalbar"><div class="goalfill" id="goalFill"></div></div>
+        <p class="sub" id="goalText"></p>
+        <div class="row">
+          <label for="weeklyGoal" class="sub">Asks per week</label>
+          <input type="number" id="weeklyGoal" min="1" max="500" value="10" class="inline" style="max-width:110px">
+          <label for="nagDays" class="sub">Nag window (days)</label>
+          <input type="number" id="nagDays" min="1" max="365" value="14" class="inline" style="max-width:110px">
+        </div>
+      </div>
+    </div>
+
     <div class="card">
-      <div class="card-head"><h2>Nag watch</h2><span class="badge warn">14-day rule</span></div>
-      <p class="sub">Customers asked in the last 14 days — hold off asking them again.</p>
+      <div class="card-head"><h2>Nag watch</h2><span class="badge warn" id="nagBadge">14-day rule</span></div>
+      <p class="sub" id="nagSub">Customers asked in the last 14 days — hold off asking them again.</p>
       <div id="nagList"><p class="sub">Nobody in the nag window. You're clear to ask.</p></div>
     </div>
 
@@ -133,6 +152,11 @@
       <div id="draftError"></div>
       <div id="draftResult"></div>
     </div>
+    <div class="card">
+      <h2>Recent drafts</h2>
+      <p class="sub">Your last drafted replies — copy one again without re-drafting.</p>
+      <div id="draftLog"></div>
+    </div>
   </section>
 
   <!-- CUSTOMERS -->
@@ -149,6 +173,7 @@
       <textarea id="csvText" placeholder="name,email,phone&#10;Sarah Lee,sarah@example.com,555-0101&#10;Tom Baker,tom@example.com,"></textarea>
       <div class="row">
         <button class="btn" id="importBtn">Import customers</button>
+        <button class="btn ghost" id="exportCsvBtn">Export CSV</button>
         <button class="btn ghost" id="exportBtn">Export JSON</button>
         <button class="btn ghost" id="clearBtn">Clear all data</button>
       </div>

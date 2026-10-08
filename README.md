@@ -15,8 +15,11 @@ Agencies charge $99–$299/mo for review software. ReviewPilot AI does the core 
 
 - **🔗 Review request link generator** — enter your business name + Google review URL → get a beautiful mobile-friendly ask page + a printable QR code for your counter, receipts, or packaging.
 - **✍️ AI reply drafter** — paste any review + star rating → get 3 reply options (professional, friendly, witty) instantly. Works **100% offline via built-in smart templates** — no API key needed. If you set `OPENAI_API_KEY`, replies get AI-polished automatically.
-- **🛡️ Anti-nag protection** — every ask is logged; customers asked within the last **14 days** are flagged so you never double-ask.
-- **📥 CSV import** — import your customer list (`name,email,phone`), track ask status per customer.
+- **🛡️ Anti-nag protection** — every ask is logged; customers asked within the last **14 days** are flagged so you never double-ask. The nag window is adjustable (1–365 days) in Settings.
+- **🎯 Who to ask next** — the dashboard suggests nag-safe customers to ask (never-asked first, then longest since last ask) with one-click "Mark asked".
+- **📈 Weekly ask goal** — set a weekly ask target and watch the progress bar fill as you log asks.
+- **🗂️ Reply draft history** — every drafted reply is saved; re-copy any tone from Recent drafts without re-drafting.
+- **📥 CSV import / export** — import your customer list (`name,email,phone`), track ask status per customer, export back to CSV any time.
 - **📊 Dashboard** — customers, ask coverage, asks this week, reviews logged, average rating.
 
 All data stays in the browser (localStorage). No accounts, no tracking, no fees.
