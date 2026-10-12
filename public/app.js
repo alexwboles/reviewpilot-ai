@@ -7,7 +7,8 @@
     asks: 'rp_asks',
     reviews: 'rp_reviews',
     settings: 'rp_settings',
-    drafts: 'rp_drafts'
+    drafts: 'rp_drafts',
+    snippets: 'rp_snippets'
   };
 
   function load(key, fallback) {
@@ -31,7 +32,8 @@
     asks: load(LS.asks, {}),
     reviews: load(LS.reviews, []),
     settings: load(LS.settings, {}),
-    drafts: load(LS.drafts, [])
+    drafts: load(LS.drafts, []),
+    snippets: load(LS.snippets, [])
   };
   function persist() {
     save(LS.customers, state.customers);
@@ -39,6 +41,7 @@
     save(LS.reviews, state.reviews);
     save(LS.settings, state.settings);
     save(LS.drafts, state.drafts);
+    save(LS.snippets, state.snippets);
   }
 
   // Settings with safe defaults.
@@ -103,11 +106,36 @@
       }).join('') + '</tbody></table>'
       : '<p class="sub">Nobody in the nag window. You\'re clear to ask.</p>';
 
-    el('reviewLog').innerHTML = state.reviews.length ? '<table><thead><tr><th>Stars</th><th>Note</th><th>Logged</th></tr></thead><tbody>' +
-      state.reviews.slice().reverse().map(function (r) {
-        return '<tr><td class="stars">' + '★'.repeat(r.stars) + '</td><td>' + esc(r.text) + '</td><td>' + esc(fmtDate(r.at)) + '</td></tr>';
+    el('reviewLog').innerHTML = state.reviews.length ? '<table><thead><tr><th>Stars</th><th>Note</th><th>Logged</th><th>Replied</th></tr></thead><tbody>' +
+      state.reviews.map(function (r, i) { return { r: r, i: i }; }).reverse().map(function (x) {
+        var r = x.r;
+        var rep = r.replied
+          ? '<span class="badge ok">replied</span>'
+          : '<button class="btn secondary small" data-replied="' + x.i + '">Mark replied</button>';
+        return '<tr><td class="stars">' + '★'.repeat(r.stars) + '</td><td>' + esc(r.text) +
+          '</td><td>' + esc(fmtDate(r.at)) + '</td><td>' + rep + '</td></tr>';
       }).join('') + '</tbody></table>'
       : '<p class="sub">No reviews logged yet.</p>';
+    el('reviewLog').querySelectorAll('[data-replied]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var r = state.reviews[parseInt(btn.dataset.replied, 10)];
+        if (!r) return;
+        r.replied = new Date().toISOString();
+        persist(); renderDashboard();
+      });
+    });
+
+    // Rating trend + response rate
+    var trend = RP.ratingTrendByMonth(state.reviews);
+    el('trendTable').innerHTML = trend.length ? '<table><thead><tr><th>Month</th><th>Reviews</th><th>Avg rating</th></tr></thead><tbody>' +
+      trend.map(function (t) {
+        return '<tr><td>' + esc(t.month) + '</td><td>' + t.count + '</td><td class="stars">' + t.avg.toFixed(1) + ' ★</td></tr>';
+      }).join('') + '</tbody></table>'
+      : '<p class="sub">Log some reviews to see your rating trend.</p>';
+    var rr = RP.responseRate(state.reviews);
+    el('responseBadge').textContent = rr.pct + '% responded';
+    el('responseLine').textContent = 'You have replied to ' + rr.replied + ' of ' + rr.total +
+      ' logged review' + (rr.total === 1 ? '' : 's') + ' (' + rr.pct + '% response rate).';
 
     renderAskNext();
     renderGoal();
@@ -148,7 +176,7 @@
   el('logReviewBtn').addEventListener('click', function () {
     var stars = parseInt(el('logStars').value, 10);
     var text = el('logText').value.trim();
-    state.reviews.push({ stars: stars, text: text || '(no note)', at: new Date().toISOString() });
+    state.reviews.push({ stars: stars, text: text || '(no note)', at: new Date().toISOString(), replied: null });
     el('logText').value = '';
     persist(); renderDashboard();
   });
@@ -178,6 +206,7 @@
     state.settings.business = biz;
     state.settings.reviewUrl = url;
     persist();
+    renderAskTemplates();
 
     el('askLink').textContent = link;
     el('genResult').classList.remove('hidden');
@@ -201,6 +230,31 @@
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
     };
   });
+
+  // ---- Ask message templates -------------------------------------------------
+  // Copy-ready SMS + email ask texts, filled from the generated link.
+  function currentAskLink() {
+    if (!state.settings.business || !state.settings.reviewUrl) return '';
+    return RP.buildAskUrl(window.location.origin, state.settings.business, state.settings.reviewUrl) || '';
+  }
+  function renderAskTemplates() {
+    var t = RP.askMessageTemplates(state.settings.business, currentAskLink());
+    el('tplSms').textContent = t.sms;
+    el('tplEmail').textContent = t.email;
+    el('copyTplSms').onclick = function () {
+      navigator.clipboard.writeText(t.sms).then(function () {
+        el('copyTplSms').textContent = 'Copied ✓';
+        setTimeout(function () { el('copyTplSms').textContent = 'Copy SMS'; }, 1500);
+      });
+    };
+    el('copyTplEmail').onclick = function () {
+      navigator.clipboard.writeText(t.email).then(function () {
+        el('copyTplEmail').textContent = 'Copied ✓';
+        setTimeout(function () { el('copyTplEmail').textContent = 'Copy email'; }, 1500);
+      });
+    };
+  }
+  renderAskTemplates();
 
   // Prefill from settings
   if (state.settings.business) el('bizName').value = state.settings.business;
@@ -415,6 +469,51 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
   }
 
+  // ---- Saved reply snippets -------------------------------------------------------
+  function renderSnippets() {
+    var box = el('snipList');
+    if (!box) return;
+    if (!state.snippets.length) {
+      box.innerHTML = '<p class="sub">No snippets yet — save your first one above.</p>';
+      return;
+    }
+    box.innerHTML = state.snippets.map(function (s, i) {
+      return '<div class="draft-entry"><div class="draft-meta"><strong>' + esc(s.name) +
+        '</strong> <span class="sub">' + esc(fmtDate(s.at)) + '</span></div>' +
+        '<p class="sub">' + esc(s.text) + '</p>' +
+        '<div class="row"><button class="btn secondary small" data-snipcopy="' + i + '">Copy</button>' +
+        '<button class="btn ghost small" data-snipdel="' + i + '">Delete</button></div></div>';
+    }).join('');
+    box.querySelectorAll('[data-snipcopy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var s = state.snippets[parseInt(btn.dataset.snipcopy, 10)];
+        if (!s) return;
+        navigator.clipboard.writeText(s.text).then(function () {
+          btn.textContent = 'Copied ✓';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+    box.querySelectorAll('[data-snipdel]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var s = state.snippets[parseInt(btn.dataset.snipdel, 10)];
+        if (!s) return;
+        if (!confirm('Delete snippet "' + s.name + '"?')) return;
+        state.snippets = RP.removeSnippet(state.snippets, s.name);
+        persist(); renderSnippets();
+      });
+    });
+  }
+
+  el('addSnipBtn').addEventListener('click', function () {
+    var msg = el('snipMsg');
+    var res = RP.addSnippet(state.snippets, el('snipName').value, el('snipText').value);
+    if (!res.ok) { msg.textContent = res.error; return; }
+    state.snippets = res.snippets;
+    el('snipName').value = ''; el('snipText').value = ''; msg.textContent = '';
+    persist(); renderSnippets();
+  });
+
   // ---- Boot -------------------------------------------------------------------------
   el('nagDays').value = nagWindow();
   el('nagDays').addEventListener('change', function () {
@@ -432,4 +531,5 @@
   });
   renderDashboard();
   renderDraftLog();
+  renderSnippets();
 })();

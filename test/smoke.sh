@@ -107,14 +107,64 @@ console.log('new-feature logic ok');
   && ok "customersToCSV / custom nag window / suggestNextAsk / goalProgress / draftLogEntry" \
   || bad "new-feature logic failed"
 
+node -e "
+const RP=require('./lib/logic');
+// ratingTrendByMonth: buckets by YYYY-MM, oldest first, avg to 1 decimal
+const revs=[
+  {stars:5,at:'2026-09-05T10:00:00.000Z',replied:'2026-09-06T00:00:00.000Z'},
+  {stars:3,at:'2026-09-15T10:00:00.000Z',replied:null},
+  {stars:4,at:'2026-10-02T10:00:00.000Z',replied:'2026-10-03T00:00:00.000Z'},
+  {stars:null,at:'2026-10-03T10:00:00.000Z'}
+];
+const t=RP.ratingTrendByMonth(revs);
+if(t.length!==2) throw new Error('trend months: '+t.length);
+if(t[0].month!=='2026-09'||t[0].count!==2||t[0].avg!==4) throw new Error('sep trend: '+JSON.stringify(t[0]));
+if(t[1].month!=='2026-10'||t[1].count!==1||t[1].avg!==4) throw new Error('oct trend');
+if(RP.ratingTrendByMonth([]).length!==0) throw new Error('empty trend');
+// responseRate: replied/total
+const rr=RP.responseRate(revs);
+if(rr.total!==4||rr.replied!==2||rr.pct!==50) throw new Error('response rate: '+JSON.stringify(rr));
+if(RP.responseRate([]).pct!==0) throw new Error('empty response rate');
+// askMessageTemplates: fills business + link, leaves no placeholders
+const at=RP.askMessageTemplates('Sunny Bakery','https://example.com/ask');
+if(!at.sms.includes('Sunny Bakery')||!at.sms.includes('https://example.com/ask')) throw new Error('sms template: '+at.sms);
+if(/\{business\}|\{link\}/.test(at.sms+at.email)) throw new Error('unfilled placeholders');
+if(!at.email.includes('Subject:')) throw new Error('email subject line missing');
+const blank=RP.askMessageTemplates('','');
+if(!blank.sms.includes('our business')) throw new Error('business fallback');
+if(RP.fillAskTemplate('Go to {link} at {business}!',{link:'L'}).indexOf('{business}')===-1) throw new Error('partial fill lost placeholder');
+// snippets: add validation, duplicate guard, remove
+let sn=[];
+let r1=RP.addSnippet(sn,'','hi');
+if(r1.ok) throw new Error('empty name must fail');
+r1=RP.addSnippet(sn,'Warm closing','');
+if(r1.ok) throw new Error('empty text must fail');
+r1=RP.addSnippet(sn,'Warm closing','Thanks — see you soon!');
+if(!r1.ok||r1.snippets.length!==1) throw new Error('add snippet');
+const dup=RP.addSnippet(r1.snippets,'warm CLOSING','other text');
+if(dup.ok) throw new Error('duplicate name must fail');
+const gone=RP.removeSnippet(r1.snippets,'WARM closing');
+if(gone.length!==0) throw new Error('remove snippet');
+const kept=RP.removeSnippet(r1.snippets,'nope');
+if(kept.length!==1) throw new Error('remove keeps others');
+console.log('improvement logic ok');
+" >/dev/null 2>&1 \
+  && ok "ratingTrendByMonth / responseRate / askMessageTemplates / snippets" \
+  || bad "improvement logic failed"
+
 # new UI wiring present
 for id in askNext goalFill goalText goalBadge weeklyGoal nagDays nagBadge nagSub draftLog exportCsvBtn; do
+  grep -q "id=\"$id\"" public/index.html && ok "wired: #$id" || bad "missing #$id"
+done
+for id in trendTable responseBadge responseLine tplSms tplEmail copyTplSms copyTplEmail snipName snipText addSnipBtn snipMsg snipList; do
   grep -q "id=\"$id\"" public/index.html && ok "wired: #$id" || bad "missing #$id"
 done
 grep -q "goalbar" public/styles.css && grep -q "draft-entry" public/styles.css \
   && ok "goalbar + draft-entry styles" || bad "new styles missing"
 grep -q "draftLogEntry\|suggestNextAsk\|goalProgress\|customersToCSV" public/app.js \
   && ok "app.js uses new logic fns" || bad "app.js missing new logic calls"
+grep -q "ratingTrendByMonth\|responseRate\|askMessageTemplates\|addSnippet\|removeSnippet" public/app.js \
+  && ok "app.js uses improvement logic fns" || bad "app.js missing improvement logic calls"
 
 kill $SRV 2>/dev/null; trap - EXIT; wait $SRV 2>/dev/null
 

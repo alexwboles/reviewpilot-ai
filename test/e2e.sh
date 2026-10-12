@@ -131,6 +131,31 @@ if(RP.isNag(old,'o@x.com',7)) throw new Error('10d ago should be clear with 7d w
 console.log('flow7 ok');" >/dev/null 2>&1 \
   && ok "CSV export / ask-next / weekly goal / draft log / custom nag window" || bad "flow 7 failed"
 
+echo "== e2e flow 8: review trend + reply accountability + snippets + ask templates =="
+node -e "
+const RP=require('./lib/logic');
+// A month of logged reviews: trend buckets + reply tracking
+const revs=[
+  {stars:5,text:'Loved it',at:'2026-09-04T12:00:00.000Z',replied:'2026-09-04T14:00:00.000Z'},
+  {stars:4,text:'Great',at:'2026-09-18T12:00:00.000Z',replied:null},
+  {stars:2,text:'Slow',at:'2026-10-03T12:00:00.000Z',replied:null},
+  {stars:5,text:'Best ever',at:'2026-10-09T12:00:00.000Z',replied:'2026-10-09T15:00:00.000Z'}
+];
+const trend=RP.ratingTrendByMonth(revs);
+if(trend.length!==2||trend[0].avg!==4.5||trend[1].avg!==3.5) throw new Error('trend: '+JSON.stringify(trend));
+const rr=RP.responseRate(revs);
+if(rr.total!==4||rr.replied!==2||rr.pct!==50) throw new Error('response: '+JSON.stringify(rr));
+// Snippets: build a small library, copy-ready text preserved verbatim
+let sn=RP.addSnippet([],'Recovery close','We take this seriously — please call us so we can make it right.').snippets;
+sn=RP.addSnippet(sn,'Thank-you','Thanks for the kind words!').snippets;
+if(sn.length!==2||sn[0].text!=='We take this seriously — please call us so we can make it right.') throw new Error('snippets');
+// Ask templates: business + link filled, both channels copy-ready
+const t=RP.askMessageTemplates('Sunny Side Bakery','http://localhost:$PORT/ask?b=X&u=Y');
+if(!t.sms.includes('Sunny Side Bakery')||!t.sms.includes('http://localhost:$PORT/ask')) throw new Error('sms');
+if(!t.email.includes('Sunny Side Bakery')||!t.email.includes('http://localhost:$PORT/ask')) throw new Error('email');
+console.log('flow8 ok');" >/dev/null 2>&1 \
+  && ok "rating trend / reply tracking / snippets / ask templates" || bad "flow 8 failed"
+
 kill $SRV 2>/dev/null; trap - EXIT; wait $SRV 2>/dev/null
 
 echo ""

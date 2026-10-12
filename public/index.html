@@ -62,7 +62,7 @@
 
     <div class="card">
       <h2>Logged reviews</h2>
-      <p class="sub">Keep a record of reviews you've received (paste them here to track your average).</p>
+      <p class="sub">Keep a record of reviews you've received (paste them here to track your average). Mark each one replied once you've responded.</p>
       <div class="row">
         <select id="logStars" class="inline">
           <option value="5">★★★★★ (5)</option>
@@ -75,6 +75,13 @@
         <button class="btn small" id="logReviewBtn">Log review</button>
       </div>
       <div id="reviewLog"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Rating trend</h2><span class="badge ok" id="responseBadge">—</span></div>
+      <p class="sub">Average rating by month from your logged reviews. Reply to every review — the response rate is your accountability.</p>
+      <p class="sub" id="responseLine"></p>
+      <div id="trendTable"></div>
     </div>
   </section>
 
@@ -117,6 +124,22 @@
         <div id="quickAskMsg"></div>
       </div>
     </div>
+    <div class="card">
+      <h2>Ask message templates</h2>
+      <p class="sub">Copy-ready texts that drop in your business name and review link. Generate the link above first — the templates update automatically.</p>
+      <div class="grid cols-2">
+        <div>
+          <h3>SMS <span class="sub">· short, for texts</span></h3>
+          <div class="linkbox" id="tplSms"></div>
+          <div class="row"><button class="btn secondary small" id="copyTplSms">Copy SMS</button></div>
+        </div>
+        <div>
+          <h3>Email <span class="sub">· warmer, for email</span></h3>
+          <div class="linkbox" id="tplEmail" style="white-space:pre-wrap"></div>
+          <div class="row"><button class="btn secondary small" id="copyTplEmail">Copy email</button></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- REPLY -->
@@ -156,6 +179,25 @@
       <h2>Recent drafts</h2>
       <p class="sub">Your last drafted replies — copy one again without re-drafting.</p>
       <div id="draftLog"></div>
+    </div>
+    <div class="card">
+      <h2>Saved snippets</h2>
+      <p class="sub">Your own reusable reply lines — closings, thank-yous, service-recovery lines. One click copies.</p>
+      <div class="grid cols-2">
+        <div>
+          <label for="snipName">Snippet name</label>
+          <input type="text" id="snipName" placeholder="e.g. Warm closing">
+        </div>
+        <div>
+          <label for="snipText">Snippet text</label>
+          <input type="text" id="snipText" placeholder="e.g. Thanks again — hope to see you soon!">
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn small" id="addSnipBtn">Save snippet</button>
+        <span class="sub" id="snipMsg"></span>
+      </div>
+      <div id="snipList"></div>
     </div>
   </section>
 
