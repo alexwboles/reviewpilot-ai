@@ -3,252 +3,269 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReviewPilot AI — Get more 5-star reviews</title>
+<title>ReviewPilot AI — Reputation command center</title>
 <link rel="stylesheet" href="/public/styles.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="top-inner">
+<div class="shell">
+  <aside class="sidebar">
     <div class="brand">
       <span class="mark" aria-hidden="true">★</span>
       <div>
         <h1>ReviewPilot <span class="ai">AI</span></h1>
-        <p>Reputation command center for local businesses</p>
+        <p id="bizLabel">Reputation command center</p>
       </div>
     </div>
     <nav class="nav" id="nav" aria-label="ReviewPilot sections">
-      <button data-view="dashboard" class="active">Dashboard</button>
-      <button data-view="get">Get Reviews</button>
-      <button data-view="reply">Reply to Reviews</button>
-      <button data-view="customers">Customers</button>
+      <button data-view="dashboard" class="active"><span class="ni" aria-hidden="true">▦</span>Dashboard</button>
+      <button data-view="get"><span class="ni" aria-hidden="true">✉</span>Get Reviews</button>
+      <button data-view="reply"><span class="ni" aria-hidden="true">✎</span>Reply to Reviews</button>
+      <button data-view="customers"><span class="ni" aria-hidden="true">☷</span>Customers</button>
     </nav>
-  </div>
-</header>
+    <p class="side-note">Private &amp; local-first.<br>Nothing leaves this browser.</p>
+  </aside>
 
-<main class="wrap">
+  <div class="main">
+    <main class="wrap">
 
-  <!-- DASHBOARD -->
-  <section id="view-dashboard">
-    <div class="pagehead">
-      <div><p class="kicker">Overview</p><h2>Your review pipeline at a glance</h2>
-      <p class="sub">Data is stored privately in this browser — nothing leaves your device.</p></div>
-    </div>
-    <div class="grid cols-4" id="statCards"></div>
-
-    <div class="grid cols-2">
-      <div class="card">
-        <div class="card-head"><h2>Who to ask next</h2><span class="badge ok">nag-safe picks</span></div>
-        <p class="sub">Customers outside the nag window — never-asked first, then longest since last ask.</p>
-        <div id="askNext"><p class="sub">Import customers to get suggestions.</p></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h2>Weekly ask goal</h2><span class="badge" id="goalBadge">0%</span></div>
-        <div class="goalbar"><div class="goalfill" id="goalFill"></div></div>
-        <p class="sub" id="goalText"></p>
-        <div class="row">
-          <label for="weeklyGoal" class="sub">Asks per week</label>
-          <input type="number" id="weeklyGoal" min="1" max="500" value="10" class="inline" style="max-width:110px">
-          <label for="nagDays" class="sub">Nag window (days)</label>
-          <input type="number" id="nagDays" min="1" max="365" value="14" class="inline" style="max-width:110px">
+      <!-- DASHBOARD -->
+      <section id="view-dashboard">
+        <div class="pagehead">
+          <div><p class="kicker">Overview</p><h2>Reputation dashboard</h2>
+          <p class="sub">The four numbers that matter — then the work to move them.</p></div>
         </div>
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-head"><h2>Nag watch</h2><span class="badge warn" id="nagBadge">14-day rule</span></div>
-      <p class="sub" id="nagSub">Customers asked in the last 14 days — hold off asking them again.</p>
-      <div id="nagList"><p class="sub">Nobody in the nag window. You're clear to ask.</p></div>
-    </div>
-
-    <div class="card">
-      <h2>Logged reviews</h2>
-      <p class="sub">Keep a record of reviews you've received (paste them here to track your average). Mark each one replied once you've responded.</p>
-      <div class="row">
-        <select id="logStars" class="inline">
-          <option value="5">★★★★★ (5)</option>
-          <option value="4">★★★★ (4)</option>
-          <option value="3">★★★ (3)</option>
-          <option value="2">★★ (2)</option>
-          <option value="1">★ (1)</option>
-        </select>
-        <input type="text" id="logText" placeholder="Short note, e.g. 'Google review from Sarah'" class="grow">
-        <button class="btn small" id="logReviewBtn">Log review</button>
-      </div>
-      <div id="reviewLog"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2>Rating trend</h2><span class="badge ok" id="responseBadge">—</span></div>
-      <p class="sub">Average rating by month from your logged reviews. Reply to every review — the response rate is your accountability.</p>
-      <p class="sub" id="responseLine"></p>
-      <div id="trendTable"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2>Recovery queue</h2><span class="badge warn" id="recoveryBadge">—</span></div>
-      <p class="sub">1–2 star reviews need follow-up until the customer is won back — not just a reply. Move each through: <b>Open</b> → <b>Contacted</b> → <b>Resolved</b>.</p>
-      <div id="recoveryQueue"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2>What customers mention</h2><span class="badge">offline insights</span></div>
-      <p class="sub">Topics auto-detected in your logged reviews, with the average rating for reviews that mention each one. Low averages point at what to fix first.</p>
-      <div id="topicInsights"></div>
-    </div>
-  </section>
-
-  <!-- GET REVIEWS -->
-  <section id="view-get" class="hidden">
-    <div class="pagehead">
-      <div><p class="kicker">Ask for reviews</p><h2>Get reviews</h2>
-      <p class="sub">Make it effortless for happy customers to leave a 5-star review.</p></div>
-    </div>
-    <div class="grid cols-2">
-      <div class="card">
-        <h2>Review request link generator</h2>
-        <p class="sub">Create a beautiful one-tap page customers can open on their phone. Print the QR code for your counter or receipts.</p>
-        <label for="bizName">Business name</label>
-        <input type="text" id="bizName" placeholder="e.g. Sunny Side Bakery">
-        <label for="reviewUrl">Google review link <span class="badge">how to find it</span></label>
-        <input type="url" id="reviewUrl" placeholder="https://g.page/r/... or Google Maps share link">
-        <p class="sub tiny">In Google Maps: open your business profile → Share → copy the link, or search "Google review link generator" for your place ID link.</p>
-        <button class="btn" id="genLinkBtn">Generate link + QR code</button>
-        <div id="genError"></div>
-        <div id="genResult" class="hidden">
-          <h3>Your shareable review page</h3>
-          <div class="linkbox" id="askLink"></div>
-          <div class="row">
-            <button class="btn secondary small" id="copyLinkBtn">Copy link</button>
-            <button class="btn secondary small" id="openAskBtn">Preview page</button>
-            <button class="btn ghost small" id="dlQrBtn">Download QR (SVG)</button>
+        <section class="repband" aria-label="Reputation summary">
+          <div class="rep-score">
+            <div class="rep-num" id="repAvg">—</div>
+            <div class="rep-stars" id="repStars" aria-label="Star rating"></div>
+            <div class="rep-sub"><span id="repCount">0</span> reviews logged · <span id="repResp">0%</span> responded</div>
           </div>
-          <div id="qrBox" class="qrbox"></div>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Quick ask logger</h2>
-        <p class="sub">Just asked someone in person? Log it here so the 14-day anti-nag rule protects them.</p>
-        <label for="quickAskName">Customer name</label>
-        <input type="text" id="quickAskName" placeholder="Customer name">
-        <label for="quickAskContact">Email or phone (optional)</label>
-        <input type="text" id="quickAskContact" placeholder="Email or phone (optional)">
-        <button class="btn small" id="quickAskBtn">Log ask</button>
-        <div id="quickAskMsg"></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Ask message templates</h2>
-      <p class="sub">Copy-ready texts that drop in your business name and review link. Generate the link above first — the templates update automatically.</p>
-      <div class="grid cols-2">
-        <div>
-          <h3>SMS <span class="sub">· short, for texts</span></h3>
-          <div class="linkbox" id="tplSms"></div>
-          <div class="row"><button class="btn secondary small" id="copyTplSms">Copy SMS</button></div>
-        </div>
-        <div>
-          <h3>Email <span class="sub">· warmer, for email</span></h3>
-          <div class="linkbox" id="tplEmail" style="white-space:pre-wrap"></div>
-          <div class="row"><button class="btn secondary small" id="copyTplEmail">Copy email</button></div>
-        </div>
-      </div>
-    </div>
-  </section>
+          <div class="rep-hist" id="starHist" aria-label="Star distribution"></div>
+          <div class="rep-goal">
+            <p class="kicker">This week's campaign</p>
+            <div class="goalbar"><div class="goalfill" id="goalFill"></div></div>
+            <p class="sub" id="goalText"></p>
+            <p class="row goal-ctrl">
+              <label for="weeklyGoal">Asks per week <input type="number" id="weeklyGoal" min="1" max="500" value="10" class="inline"></label>
+              <label for="nagDays">Nag window (days) <input type="number" id="nagDays" min="1" max="365" value="14" class="inline"></label>
+            </p>
+          </div>
+        </section>
 
-  <!-- REPLY -->
-  <section id="view-reply" class="hidden">
-    <div class="pagehead">
-      <div><p class="kicker">Respond</p><h2>Reply to reviews</h2>
-      <p class="sub">Paste a customer review, pick the stars, get three reply options in seconds.</p></div>
-    </div>
-    <div class="card reply-workspace">
-      <h2>AI reply drafter <span id="aiBadge"></span></h2>
-      <p class="sub">Works offline — no API key needed.</p>
-      <label for="repBiz">Business name (optional)</label>
-      <input type="text" id="repBiz" placeholder="e.g. Sunny Side Bakery">
-      <div class="grid cols-2">
-        <div>
-          <label for="repName">Reviewer name (optional)</label>
-          <input type="text" id="repName" placeholder="e.g. Sarah">
+        <div class="grid cols-2">
+          <div class="card">
+            <div class="card-head"><h2>Who to ask next</h2><span class="badge ok">nag-safe picks</span></div>
+            <p class="sub">Customers outside the nag window — never-asked first, then longest since last ask.</p>
+            <div id="askNext"><p class="sub">Import customers to get suggestions.</p></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Nag watch</h2><span class="badge warn" id="nagBadge">14-day rule</span></div>
+            <p class="sub" id="nagSub">Customers asked in the last 14 days — hold off asking them again.</p>
+            <div id="nagList"><p class="sub">Nobody in the nag window. You're clear to ask.</p></div>
+          </div>
         </div>
-        <div>
-          <label for="repStars">Star rating</label>
-          <select id="repStars">
-            <option value="5">★★★★★ (5)</option>
-            <option value="4">★★★★ (4)</option>
-            <option value="3">★★★ (3)</option>
-            <option value="2">★★ (2)</option>
-            <option value="1">★ (1)</option>
-          </select>
-        </div>
-      </div>
-      <label for="repText">Customer review</label>
-      <textarea id="repText" placeholder="Paste the review text here..."></textarea>
-      <button class="btn" id="draftBtn">Draft 3 replies</button>
-      <div id="draftError"></div>
-      <div id="draftResult"></div>
-    </div>
-    <div class="card">
-      <h2>Recent drafts</h2>
-      <p class="sub">Your last drafted replies — copy one again without re-drafting.</p>
-      <div id="draftLog"></div>
-    </div>
-    <div class="card">
-      <h2>Saved snippets</h2>
-      <p class="sub">Your own reusable reply lines — closings, thank-yous, service-recovery lines. One click copies.</p>
-      <div class="grid cols-2">
-        <div>
-          <label for="snipName">Snippet name</label>
-          <input type="text" id="snipName" placeholder="e.g. Warm closing">
-        </div>
-        <div>
-          <label for="snipText">Snippet text</label>
-          <input type="text" id="snipText" placeholder="e.g. Thanks again — hope to see you soon!">
-        </div>
-      </div>
-      <div class="row">
-        <button class="btn small" id="addSnipBtn">Save snippet</button>
-        <span class="sub" id="snipMsg"></span>
-      </div>
-      <div id="snipList"></div>
-    </div>
-  </section>
 
-  <!-- CUSTOMERS -->
-  <section id="view-customers" class="hidden">
-    <div class="pagehead">
-      <div><p class="kicker">Outreach list</p><h2>Customers</h2>
-      <p class="sub">Import from CSV (columns: <code>name,email,phone</code> — any order). Asks are tracked so nobody gets nagged.</p></div>
-    </div>
-    <div class="card">
-      <h2>Import customers</h2>
-      <label for="csvFile">Upload CSV file</label>
-      <input type="file" id="csvFile" accept=".csv,text/csv">
-      <label for="csvText">…or paste CSV here</label>
-      <textarea id="csvText" placeholder="name,email,phone&#10;Sarah Lee,sarah@example.com,555-0101&#10;Tom Baker,tom@example.com,"></textarea>
-      <div class="row">
-        <button class="btn" id="importBtn">Import customers</button>
-        <button class="btn ghost" id="exportCsvBtn">Export CSV</button>
-        <button class="btn ghost" id="exportBtn">Export JSON</button>
-        <button class="btn ghost" id="restoreBtn">Restore backup…</button>
-        <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
-        <button class="btn ghost" id="clearBtn">Clear all data</button>
-      </div>
-      <div id="importMsg"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Customer list</h2><span class="badge" id="custCount">0</span></div>
-      <div class="table-scroll">
-      <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody id="custTable"></tbody>
-      </table>
-      </div>
-    </div>
-  </section>
+        <div class="card">
+          <div class="card-head"><h2>Review stream</h2><span class="badge" id="responseBadge">—</span></div>
+          <p class="sub">Every review you've received. Mark each replied once you've responded — <span id="responseLine"></span></p>
+          <div class="filterbar" id="starFilter" role="group" aria-label="Filter by stars">
+            <button data-stars="0" class="fbtn active">All</button>
+            <button data-stars="5" class="fbtn">5★</button>
+            <button data-stars="4" class="fbtn">4★</button>
+            <button data-stars="3" class="fbtn">3★</button>
+            <button data-stars="2" class="fbtn">2★</button>
+            <button data-stars="1" class="fbtn">1★</button>
+            <button data-replied="1" class="fbtn">Needs reply</button>
+          </div>
+          <div class="row stream-tools">
+            <select id="logStars" class="inline" aria-label="Stars for logged review">
+              <option value="5">★★★★★ (5)</option>
+              <option value="4">★★★★ (4)</option>
+              <option value="3">★★★ (3)</option>
+              <option value="2">★★ (2)</option>
+              <option value="1">★ (1)</option>
+            </select>
+            <input type="text" id="logText" placeholder="Short note, e.g. 'Google review from Sarah'" class="grow">
+            <button class="btn small" id="logReviewBtn">Log review</button>
+          </div>
+          <div id="reviewLog"></div>
+        </div>
 
-</main>
+        <div class="grid cols-2">
+          <div class="card">
+            <div class="card-head"><h2>Rating trend</h2></div>
+            <p class="sub">Average rating by month from your logged reviews.</p>
+            <div id="trendTable"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>What customers mention</h2><span class="badge">offline insights</span></div>
+            <p class="sub">Topics auto-detected in your logged reviews. Low averages point at what to fix first.</p>
+            <div id="topicInsights"></div>
+          </div>
+        </div>
 
-<footer>ReviewPilot AI · free &amp; local-first · your data never leaves this browser</footer>
+        <div class="card">
+          <div class="card-head"><h2>Recovery board</h2><span class="badge warn" id="recoveryBadge">—</span></div>
+          <p class="sub">1–2 star reviews need follow-up until the customer is won back — not just a reply. Move each card: <b>Open</b> → <b>Contacted</b> → <b>Resolved</b>.</p>
+          <div id="recoveryQueue" class="kanban"></div>
+        </div>
+      </section>
+
+      <!-- GET REVIEWS -->
+      <section id="view-get" class="hidden">
+        <div class="pagehead">
+          <div><p class="kicker">Review campaigns</p><h2>Get reviews</h2>
+          <p class="sub">Make it effortless for happy customers to leave a 5-star review.</p></div>
+        </div>
+        <div class="statstrip" id="campaignStrip"></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h2>Review request link generator</h2>
+            <p class="sub">Create a beautiful one-tap page customers can open on their phone. Print the QR code for your counter or receipts.</p>
+            <label for="bizName">Business name</label>
+            <input type="text" id="bizName" placeholder="e.g. Sunny Side Bakery">
+            <label for="reviewUrl">Google review link</label>
+            <input type="url" id="reviewUrl" placeholder="https://g.page/r/... or Google Maps share link">
+            <p class="sub tiny">In Google Maps: open your business profile → Share → copy the link, or search "Google review link generator" for your place ID link.</p>
+            <button class="btn" id="genLinkBtn">Generate link + QR code</button>
+            <div id="genError"></div>
+            <div id="genResult" class="hidden">
+              <h3>Your shareable review page</h3>
+              <div class="linkbox" id="askLink"></div>
+              <div class="row">
+                <button class="btn secondary small" id="copyLinkBtn">Copy link</button>
+                <button class="btn secondary small" id="openAskBtn">Preview page</button>
+                <button class="btn ghost small" id="dlQrBtn">Download QR (SVG)</button>
+              </div>
+              <div id="qrBox" class="qrbox"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Quick ask logger</h2>
+            <p class="sub">Just asked someone in person? Log it here so the nag window protects them.</p>
+            <label for="quickAskName">Customer name</label>
+            <input type="text" id="quickAskName" placeholder="Customer name">
+            <label for="quickAskContact">Email or phone (optional)</label>
+            <input type="text" id="quickAskContact" placeholder="Email or phone (optional)">
+            <button class="btn small" id="quickAskBtn">Log ask</button>
+            <div id="quickAskMsg"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Ask message templates</h2>
+          <p class="sub">Copy-ready texts that drop in your business name and review link. Generate the link above first — the templates update automatically.</p>
+          <div class="grid cols-2">
+            <div>
+              <h3>SMS <span class="sub">· short, for texts</span></h3>
+              <div class="linkbox" id="tplSms"></div>
+              <div class="row"><button class="btn secondary small" id="copyTplSms">Copy SMS</button></div>
+            </div>
+            <div>
+              <h3>Email <span class="sub">· warmer, for email</span></h3>
+              <div class="linkbox" id="tplEmail" style="white-space:pre-wrap"></div>
+              <div class="row"><button class="btn secondary small" id="copyTplEmail">Copy email</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPLY -->
+      <section id="view-reply" class="hidden">
+        <div class="pagehead">
+          <div><p class="kicker">Response desk</p><h2>Reply to reviews</h2>
+          <p class="sub">Paste a customer review, pick the stars, get three reply options in seconds.</p></div>
+        </div>
+        <div class="card reply-workspace">
+          <h2>AI reply drafter <span id="aiBadge"></span></h2>
+          <p class="sub">Works offline — no API key needed.</p>
+          <label for="repBiz">Business name (optional)</label>
+          <input type="text" id="repBiz" placeholder="e.g. Sunny Side Bakery">
+          <div class="grid cols-2">
+            <div>
+              <label for="repName">Reviewer name (optional)</label>
+              <input type="text" id="repName" placeholder="e.g. Sarah">
+            </div>
+            <div>
+              <label for="repStars">Star rating</label>
+              <select id="repStars">
+                <option value="5">★★★★★ (5)</option>
+                <option value="4">★★★★ (4)</option>
+                <option value="3">★★★ (3)</option>
+                <option value="2">★★ (2)</option>
+                <option value="1">★ (1)</option>
+              </select>
+            </div>
+          </div>
+          <label for="repText">Customer review</label>
+          <textarea id="repText" placeholder="Paste the review text here..."></textarea>
+          <button class="btn" id="draftBtn">Draft 3 replies</button>
+          <div id="draftError"></div>
+          <div id="draftResult"></div>
+        </div>
+        <div class="card">
+          <h2>Recent drafts</h2>
+          <p class="sub">Your last drafted replies — copy one again without re-drafting.</p>
+          <div id="draftLog"></div>
+        </div>
+        <div class="card">
+          <h2>Saved snippets</h2>
+          <p class="sub">Your own reusable reply lines — closings, thank-yous, service-recovery lines. One click copies.</p>
+          <div class="grid cols-2">
+            <div>
+              <label for="snipName">Snippet name</label>
+              <input type="text" id="snipName" placeholder="e.g. Warm closing">
+            </div>
+            <div>
+              <label for="snipText">Snippet text</label>
+              <input type="text" id="snipText" placeholder="e.g. Thanks again — hope to see you soon!">
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn small" id="addSnipBtn">Save snippet</button>
+            <span class="sub" id="snipMsg"></span>
+          </div>
+          <div id="snipList"></div>
+        </div>
+      </section>
+
+      <!-- CUSTOMERS -->
+      <section id="view-customers" class="hidden">
+        <div class="pagehead">
+          <div><p class="kicker">Outreach list</p><h2>Customers</h2>
+          <p class="sub">Import from CSV (columns: <code>name,email,phone</code> — any order). Asks are tracked so nobody gets nagged.</p></div>
+        </div>
+        <div class="card">
+          <h2>Import customers</h2>
+          <label for="csvFile">Upload CSV file</label>
+          <input type="file" id="csvFile" accept=".csv,text/csv">
+          <label for="csvText">…or paste CSV here</label>
+          <textarea id="csvText" placeholder="name,email,phone&#10;Sarah Lee,sarah@example.com,555-0101&#10;Tom Baker,tom@example.com,"></textarea>
+          <div class="row">
+            <button class="btn" id="importBtn">Import customers</button>
+            <button class="btn ghost" id="exportCsvBtn">Export CSV</button>
+            <button class="btn ghost" id="exportBtn">Export JSON</button>
+            <button class="btn ghost" id="restoreBtn">Restore backup…</button>
+            <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
+            <button class="btn ghost" id="clearBtn">Clear all data</button>
+          </div>
+          <div id="importMsg"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Customer list</h2><span class="badge" id="custCount">0</span></div>
+          <div class="table-scroll">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="custTable"></tbody>
+          </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+    <footer class="foot">ReviewPilot AI · free &amp; local-first · your data never leaves this browser</footer>
+  </div>
+</div>
 
 <script src="/public/vendor/qrcode.min.js"></script>
 <script src="/lib/logic.js"></script>

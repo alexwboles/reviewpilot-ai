@@ -153,16 +153,18 @@ console.log('improvement logic ok');
   || bad "improvement logic failed"
 
 # new UI wiring present
-for id in askNext goalFill goalText goalBadge weeklyGoal nagDays nagBadge nagSub draftLog exportCsvBtn; do
+for id in askNext goalFill goalText weeklyGoal nagDays nagBadge nagSub draftLog exportCsvBtn repAvg repStars starHist starFilter campaignStrip bizLabel; do
   grep -q "id=\"$id\"" public/index.html && ok "wired: #$id" || bad "missing #$id"
 done
 for id in trendTable responseBadge responseLine tplSms tplEmail copyTplSms copyTplEmail snipName snipText addSnipBtn snipMsg snipList; do
   grep -q "id=\"$id\"" public/index.html && ok "wired: #$id" || bad "missing #$id"
 done
-grep -q "goalbar" public/styles.css && grep -q "draft-entry" public/styles.css \
-  && ok "goalbar + draft-entry styles" || bad "new styles missing"
+grep -q "goalbar" public/styles.css && grep -q "draft-entry" public/styles.css && grep -q "repband" public/styles.css \
+  && ok "goalbar + draft-entry + repband styles" || bad "new styles missing"
 grep -q "draftLogEntry\|suggestNextAsk\|goalProgress\|customersToCSV" public/app.js \
   && ok "app.js uses new logic fns" || bad "app.js missing new logic calls"
+grep -q "kanban" public/styles.css && grep -q "renderRepBand\|renderCampaignStrip\|streamFilter" public/app.js \
+  && ok "kanban + repband + stream filter wired" || bad "redesign wiring missing"
 grep -q "ratingTrendByMonth\|responseRate\|askMessageTemplates\|addSnippet\|removeSnippet" public/app.js \
   && ok "app.js uses improvement logic fns" || bad "app.js missing improvement logic calls"
 

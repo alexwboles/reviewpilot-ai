@@ -8,7 +8,8 @@
     reviews: 'rp_reviews',
     settings: 'rp_settings',
     drafts: 'rp_drafts',
-    snippets: 'rp_snippets'
+    snippets: 'rp_snippets',
+    campaigns: 'rp_campaigns'
   };
 
   function load(key, fallback) {
@@ -33,7 +34,8 @@
     reviews: load(LS.reviews, []),
     settings: load(LS.settings, {}),
     drafts: load(LS.drafts, []),
-    snippets: load(LS.snippets, [])
+    snippets: load(LS.snippets, []),
+    campaigns: load(LS.campaigns, { links: 0, qrs: 0, asks: 0 })
   };
   function persist() {
     save(LS.customers, state.customers);
@@ -42,7 +44,11 @@
     save(LS.settings, state.settings);
     save(LS.drafts, state.drafts);
     save(LS.snippets, state.snippets);
+    save(LS.campaigns, state.campaigns);
   }
+
+  // Review stream filter: { stars: 0=all, repliedOnly: false }
+  var streamFilter = { stars: 0, repliedOnly: false };
 
   // Settings with safe defaults.
   function nagWindow() {
@@ -74,19 +80,6 @@
   }
 
   function renderDashboard() {
-    var stats = RP.computeStats(state);
-    var cards = [
-      [stats.totalCustomers, 'customers'],
-      [stats.askedCount, 'asked for reviews'],
-      [stats.askRate + '%', 'ask coverage'],
-      [stats.asksLast7Days, 'asks (last 7 days)'],
-      [stats.totalReviews, 'reviews logged'],
-      [stats.avgRating == null ? '—' : stats.avgRating + ' ★', 'average rating']
-    ];
-    el('statCards').innerHTML = cards.map(function (c) {
-      return '<div class="card stat"><div class="num">' + esc(c[0]) + '</div><div class="lbl">' + esc(c[1]) + '</div></div>';
-    }).join('');
-
     var win = nagWindow();
     el('nagBadge').textContent = win + '-day rule';
     el('nagSub').textContent = 'Customers asked in the last ' + win + ' days — hold off asking them again.';
@@ -106,16 +99,23 @@
       }).join('') + '</tbody></table>'
       : '<p class="sub">Nobody in the nag window. You\'re clear to ask.</p>';
 
-    el('reviewLog').innerHTML = state.reviews.length ? '<table><thead><tr><th>Stars</th><th>Note</th><th>Logged</th><th>Replied</th></tr></thead><tbody>' +
-      state.reviews.map(function (r, i) { return { r: r, i: i }; }).reverse().map(function (x) {
+    // Review stream with star filter + needs-reply filter (Birdeye/Podium style).
+    var stream = state.reviews.map(function (r, i) { return { r: r, i: i }; })
+      .filter(function (x) {
+        if (streamFilter.stars && x.r.stars !== streamFilter.stars) return false;
+        if (streamFilter.repliedOnly && x.r.replied) return false;
+        return true;
+      }).reverse();
+    el('reviewLog').innerHTML = stream.length ? '<table><thead><tr><th>Stars</th><th>Note</th><th>Logged</th><th>Replied</th></tr></thead><tbody>' +
+      stream.map(function (x) {
         var r = x.r;
         var rep = r.replied
           ? '<span class="badge ok">replied</span>'
           : '<button class="btn secondary small" data-replied="' + x.i + '">Mark replied</button>';
-        return '<tr><td class="stars">' + '★'.repeat(r.stars) + '</td><td>' + esc(r.text) +
-          '</td><td>' + esc(fmtDate(r.at)) + '</td><td>' + rep + '</td></tr>';
+        return '<tr class="review-row"><td class="stars">' + '★'.repeat(r.stars) + '</td><td>' + esc(r.text) +
+          '</td><td class="logdate">' + esc(fmtDate(r.at)) + '</td><td>' + rep + '</td></tr>';
       }).join('') + '</tbody></table>'
-      : '<p class="sub">No reviews logged yet.</p>';
+      : '<p class="sub">' + (state.reviews.length ? 'No reviews match this filter.' : 'No reviews logged yet.') + '</p>';
     el('reviewLog').querySelectorAll('[data-replied]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var r = state.reviews[parseInt(btn.dataset.replied, 10)];
@@ -141,6 +141,46 @@
     renderGoal();
     renderTopics();
     renderRecovery();
+    renderRepBand();
+    renderCampaignStrip();
+    if (state.settings.business) el('bizLabel').textContent = state.settings.business + ' · reputation command center';
+  }
+
+  // ---- Reputation band (Birdeye/Podium-style KPI strip) --------------------------
+  function renderRepBand() {
+    var stats = RP.computeStats(state);
+    var avg = stats.avgRating == null ? null : parseFloat(stats.avgRating);
+    el('repAvg').textContent = avg == null ? '—' : avg.toFixed(1);
+    var full = avg == null ? 0 : Math.round(avg);
+    el('repStars').textContent = '★'.repeat(full) + '☆'.repeat(Math.max(0, 5 - full));
+    el('repStars').classList.toggle('empty-stars', avg == null);
+    el('repCount').textContent = stats.totalReviews;
+    var rr = RP.responseRate(state.reviews);
+    el('repResp').textContent = rr.pct + '%';
+
+    // Star distribution histogram.
+    var dist = [0, 0, 0, 0, 0, 0];
+    state.reviews.forEach(function (r) { if (r.stars >= 1 && r.stars <= 5) dist[r.stars]++; });
+    var max = Math.max(1, Math.max.apply(null, dist.slice(1)));
+    el('starHist').innerHTML = [5, 4, 3, 2, 1].map(function (s) {
+      var w = Math.round(dist[s] / max * 100);
+      return '<div class="hrow"><span>' + s + '★</span>' +
+        '<div class="hbar"><i style="width:' + w + '%"></i></div>' +
+        '<span>' + dist[s] + '</span></div>';
+    }).join('');
+  }
+
+  // ---- Campaign stats strip ------------------------------------------------------
+  function renderCampaignStrip() {
+    var c = state.campaigns;
+    var cards = [
+      [c.links, 'review links generated'],
+      [c.qrs, 'QR codes downloaded'],
+      [c.asks, 'asks logged']
+    ];
+    el('campaignStrip').innerHTML = cards.map(function (x) {
+      return '<div class="stat"><div class="num">' + esc(x[0]) + '</div><div class="lbl">' + esc(x[1]) + '</div></div>';
+    }).join('');
   }
 
   // ---- What customers mention --------------------------------------------------
@@ -175,16 +215,22 @@
       return;
     }
     var next = { open: 'contacted', contacted: 'resolved', resolved: 'open' };
-    box.innerHTML = '<table><thead><tr><th>Stars</th><th>Note</th><th>Logged</th><th>Status</th><th></th></tr></thead><tbody>' +
-      queue.map(function (x) {
-        var r = x.r;
-        var st = RP.recoveryStatus(r);
-        var badge = st === 'open' ? 'warn' : 'ok';
-        return '<tr><td class="stars">' + '★'.repeat(r.stars) + '</td><td>' + esc(r.text) +
-          '</td><td>' + esc(fmtDate(r.at)) + '</td>' +
-          '<td><span class="badge ' + badge + '">' + esc(st) + '</span></td>' +
-          '<td><button class="btn secondary small" data-recover="' + x.i + '">Mark ' + next[st] + '</button></td></tr>';
-      }).join('') + '</tbody></table>';
+    var cols = [
+      { key: 'open', label: 'Open', cls: '' },
+      { key: 'contacted', label: 'Contacted', cls: '' },
+      { key: 'resolved', label: 'Resolved', cls: 'resolved' }
+    ];
+    box.innerHTML = cols.map(function (col) {
+      var items = queue.filter(function (x) { return RP.recoveryStatus(x.r) === col.key; });
+      return '<div class="kcol"><h3>' + col.label + ' <span class="kcount">' + items.length + '</span></h3>' +
+        items.map(function (x) {
+          var r = x.r;
+          return '<div class="kcard ' + col.cls + '"><div class="stars">' + '★'.repeat(r.stars) + '</div>' +
+            '<p>' + esc(r.text) + '</p>' +
+            '<div class="logdate">' + esc(fmtDate(r.at)) + '</div>' +
+            '<div class="row" style="margin:.5rem 0 0"><button class="btn secondary small" data-recover="' + x.i + '">Move to ' + next[col.key] + '</button></div></div>';
+        }).join('') + '</div>';
+    }).join('');
     box.querySelectorAll('[data-recover]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var i = parseInt(btn.dataset.recover, 10);
@@ -214,6 +260,7 @@
       btn.addEventListener('click', function () {
         var c = picks[parseInt(btn.dataset.asknext, 10)];
         state.asks = RP.recordAsk(state.asks, c.key);
+        state.campaigns.asks++;
         persist(); renderDashboard(); renderCustomers();
       });
     });
@@ -223,8 +270,7 @@
   function renderGoal() {
     var g = RP.goalProgress(state.asks, weeklyGoal());
     el('goalFill').style.width = g.pct + '%';
-    el('goalBadge').textContent = g.pct + '%';
-    el('goalText').textContent = g.count + ' of ' + g.goal + ' asks this week' +
+    el('goalText').textContent = g.count + ' of ' + g.goal + ' asks this week (' + g.pct + '%)' +
       (g.remaining ? ' — ' + g.remaining + ' to go.' : ' — goal hit. Nice work.');
   }
 
@@ -260,6 +306,8 @@
     var link = RP.buildAskUrl(window.location.origin, biz, url);
     state.settings.business = biz;
     state.settings.reviewUrl = url;
+    state.campaigns.links++;
+    el('bizLabel').textContent = biz + ' · reputation command center';
     persist();
     renderAskTemplates();
 
@@ -277,6 +325,9 @@
     el('dlQrBtn').onclick = function () {
       var svg = el('qrBox').querySelector('svg');
       if (!svg) return;
+      state.campaigns.qrs++;
+      persist();
+      renderCampaignStrip();
       var blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -328,6 +379,7 @@
       msg.innerHTML = '<p class="notice">' + esc(RP.nagMessage(state.asks, key, win)) + ' Log again anyway?</p>';
     }
     state.asks = RP.recordAsk(state.asks, key);
+    state.campaigns.asks++;
     // Auto-add to customers if unknown
     if (!state.customers.some(function (c) { return c.key === key; })) {
       state.customers.push({ name: name || contact, email: '', phone: '', key: key });
@@ -505,6 +557,7 @@
       ['asks', 'settings', 'drafts', 'snippets'].forEach(function (k) {
         if (obj[k] && typeof obj[k] === 'object') state[k] = obj[k];
       });
+      if (obj.campaigns && typeof obj.campaigns === 'object') state.campaigns = obj.campaigns;
       persist(); renderCustomers(); renderDashboard(); renderDraftLog();
       msg.innerHTML = '<p class="notice ok">Restored <b>' + counts.customers + '</b> customer(s) and <b>' +
         counts.reviews + '</b> review(s) from backup.</p>';
@@ -516,7 +569,7 @@
     if (!confirm('Clear ALL ReviewPilot data in this browser?')) return;
     // Bug fix: snippets was missing from the reset, leaving stale snippet
     // records in localStorage after a "clear all".
-    state = { customers: [], asks: {}, reviews: [], settings: {}, drafts: [], snippets: [] };
+    state = { customers: [], asks: {}, reviews: [], settings: {}, drafts: [], snippets: [], campaigns: { links: 0, qrs: 0, asks: 0 } };
     persist(); renderCustomers(); renderDashboard(); renderDraftLog();
   });
 
@@ -551,6 +604,7 @@
           return;
         }
         state.asks = RP.recordAsk(state.asks, c.key);
+        state.campaigns.asks++;
         persist(); renderCustomers(); renderDashboard();
       });
     });
@@ -608,6 +662,22 @@
     state.snippets = res.snippets;
     el('snipName').value = ''; el('snipText').value = ''; msg.textContent = '';
     persist(); renderSnippets();
+  });
+
+  // ---- Review stream filters ---------------------------------------------------------
+  el('starFilter').addEventListener('click', function (e) {
+    var btn = e.target.closest('.fbtn');
+    if (!btn) return;
+    if (btn.dataset.replied) {
+      streamFilter.repliedOnly = !streamFilter.repliedOnly;
+      btn.classList.toggle('active', streamFilter.repliedOnly);
+    } else {
+      streamFilter.stars = parseInt(btn.dataset.stars, 10);
+      el('starFilter').querySelectorAll('[data-stars]').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+    }
+    renderDashboard();
   });
 
   // ---- Boot -------------------------------------------------------------------------
