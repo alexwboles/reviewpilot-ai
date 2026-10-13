@@ -139,6 +139,61 @@
 
     renderAskNext();
     renderGoal();
+    renderTopics();
+    renderRecovery();
+  }
+
+  // ---- What customers mention --------------------------------------------------
+  function renderTopics() {
+    var box = el('topicInsights');
+    if (!box) return;
+    var topics = RP.reviewTopics(state.reviews);
+    if (!topics.length) {
+      box.innerHTML = '<p class="sub">Log reviews with a short note to see topic insights.</p>';
+      return;
+    }
+    var maxM = Math.max.apply(null, topics.map(function (t) { return t.mentions; }));
+    box.innerHTML = topics.map(function (t) {
+      var w = Math.round(t.mentions / maxM * 100);
+      var mood = t.avgStars >= 4 ? 'ok' : (t.avgStars >= 3 ? '' : 'warn');
+      return '<div class="topic-row"><div class="topic-name">' + esc(t.topic) + '</div>' +
+        '<div class="goalbar grow"><div class="goalfill" style="width:' + w + '%"></div></div>' +
+        '<div class="topic-meta">' + t.mentions + ' mention' + (t.mentions === 1 ? '' : 's') +
+        ' · <span class="badge ' + mood + '">' + t.avgStars.toFixed(1) + ' ★</span></div></div>';
+    }).join('');
+  }
+
+  // ---- Recovery queue ------------------------------------------------------------
+  function renderRecovery() {
+    var box = el('recoveryQueue');
+    if (!box) return;
+    var queue = RP.recoveryQueue(state.reviews);
+    var open = queue.filter(function (x) { return RP.recoveryStatus(x.r) === 'open'; }).length;
+    el('recoveryBadge').textContent = queue.length ? open + ' open' : 'clear';
+    if (!queue.length) {
+      box.innerHTML = '<p class="sub">No unresolved low reviews. Keep it that way.</p>';
+      return;
+    }
+    var next = { open: 'contacted', contacted: 'resolved', resolved: 'open' };
+    box.innerHTML = '<table><thead><tr><th>Stars</th><th>Note</th><th>Logged</th><th>Status</th><th></th></tr></thead><tbody>' +
+      queue.map(function (x) {
+        var r = x.r;
+        var st = RP.recoveryStatus(r);
+        var badge = st === 'open' ? 'warn' : 'ok';
+        return '<tr><td class="stars">' + '★'.repeat(r.stars) + '</td><td>' + esc(r.text) +
+          '</td><td>' + esc(fmtDate(r.at)) + '</td>' +
+          '<td><span class="badge ' + badge + '">' + esc(st) + '</span></td>' +
+          '<td><button class="btn secondary small" data-recover="' + x.i + '">Mark ' + next[st] + '</button></td></tr>';
+      }).join('') + '</tbody></table>';
+    box.querySelectorAll('[data-recover]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var i = parseInt(btn.dataset.recover, 10);
+        var cur = RP.recoveryStatus(state.reviews[i]);
+        var res = RP.setRecoveryStatus(state.reviews, i, next[cur]);
+        if (!res.ok) return;
+        persist(); renderDashboard();
+      });
+    });
   }
 
   // ---- Who to ask next ------------------------------------------------------
@@ -418,9 +473,50 @@
     el('importMsg').innerHTML = '<p class="notice ok">Exported <b>' + state.customers.length + '</b> customer(s) to CSV.</p>';
   });
 
+  // ---- Backup restore -------------------------------------------------------------
+  // Re-imports a JSON file written by "Export JSON". Validates shape first,
+  // then merges on top of existing data without clobbering it.
+  el('restoreBtn').addEventListener('click', function () { el('restoreFile').click(); });
+  el('restoreFile').addEventListener('change', function () {
+    var msg = el('importMsg');
+    var file = el('restoreFile').files[0];
+    el('restoreFile').value = '';
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var obj;
+      try { obj = JSON.parse(reader.result); }
+      catch (e) { msg.innerHTML = '<p class="notice err">That file is not valid JSON.</p>'; return; }
+      var v = RP.validateBackup(obj);
+      if (!v.ok) { msg.innerHTML = '<p class="notice err">' + esc(v.error) + '</p>'; return; }
+      if (!confirm('Restore this backup? Existing customers and reviews are kept — backup items merge in.')) return;
+      var counts = { customers: 0, reviews: 0 };
+      (obj.customers || []).forEach(function (r) {
+        var c = { name: String(r.name || ''), email: String(r.email || ''), phone: String(r.phone || '') };
+        c.key = (c.email || c.phone || c.name).toLowerCase();
+        if (c.key && !state.customers.some(function (x) { return x.key === c.key; })) {
+          state.customers.push(c); counts.customers++;
+        }
+      });
+      (obj.reviews || []).forEach(function (r) {
+        state.reviews.push({ stars: r.stars, text: r.text || '', at: r.at || new Date().toISOString(), replied: r.replied || null, recovery: r.recovery || 'open' });
+        counts.reviews++;
+      });
+      ['asks', 'settings', 'drafts', 'snippets'].forEach(function (k) {
+        if (obj[k] && typeof obj[k] === 'object') state[k] = obj[k];
+      });
+      persist(); renderCustomers(); renderDashboard(); renderDraftLog();
+      msg.innerHTML = '<p class="notice ok">Restored <b>' + counts.customers + '</b> customer(s) and <b>' +
+        counts.reviews + '</b> review(s) from backup.</p>';
+    };
+    reader.readAsText(file);
+  });
+
   el('clearBtn').addEventListener('click', function () {
     if (!confirm('Clear ALL ReviewPilot data in this browser?')) return;
-    state = { customers: [], asks: {}, reviews: [], settings: {}, drafts: [] };
+    // Bug fix: snippets was missing from the reset, leaving stale snippet
+    // records in localStorage after a "clear all".
+    state = { customers: [], asks: {}, reviews: [], settings: {}, drafts: [], snippets: [] };
     persist(); renderCustomers(); renderDashboard(); renderDraftLog();
   });
 

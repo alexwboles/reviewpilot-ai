@@ -166,6 +166,48 @@ grep -q "draftLogEntry\|suggestNextAsk\|goalProgress\|customersToCSV" public/app
 grep -q "ratingTrendByMonth\|responseRate\|askMessageTemplates\|addSnippet\|removeSnippet" public/app.js \
   && ok "app.js uses improvement logic fns" || bad "app.js missing improvement logic calls"
 
+# sweep-2 logic: review topics + recovery workflow + backup validation
+node -e "
+const RP=require('./lib/logic');
+// topic insights: mentions counted, avg stars per topic
+const revs=[
+  {stars:5,text:'The food was incredible and the waiter was so friendly'},
+  {stars:2,text:'Terrible service, waited an hour, food was cold'},
+  {stars:4,text:'Great parking, prices were fair'}
+];
+const topics=RP.reviewTopics(revs);
+const food=topics.find(t=>t.topic==='Food & drink');
+if(!food||food.mentions!==2||food.avgStars!==3.5) throw new Error('food topic: '+JSON.stringify(food));
+const price=topics.find(t=>t.topic==='Price');
+if(!price||price.mentions!==1||price.avgStars!==4) throw new Error('price topic: '+JSON.stringify(price));
+if(RP.reviewTopics([]).length!==0) throw new Error('empty reviews');
+// recovery workflow: open -> contacted -> resolved; queue excludes resolved + high stars
+let rr=[{stars:1,text:'Awful'},{stars:5,text:'Great'},{stars:2,text:'Slow',recovery:'resolved'}];
+if(RP.recoveryQueue(rr).length!==1) throw new Error('queue should hold only the unresolved 1-star');
+let r2=RP.setRecoveryStatus(rr,0,'contacted');
+if(!r2.ok||RP.recoveryStatus(rr[0])!=='contacted') throw new Error('status set failed');
+if(RP.setRecoveryStatus(rr,0,'bogus').ok) throw new Error('invalid status must fail');
+if(RP.setRecoveryStatus(rr,9,'open').ok) throw new Error('bad index must fail');
+rr=RP.setRecoveryStatus(rr,0,'resolved')&&rr;
+if(RP.recoveryQueue(rr).length!==0) throw new Error('resolved must leave queue');
+// backup validation
+if(!RP.validateBackup({customers:[],reviews:[]}).ok) throw new Error('valid backup rejected');
+if(RP.validateBackup({customers:'nope'}).ok) throw new Error('corrupt backup accepted');
+if(RP.validateBackup({other:1}).ok) throw new Error('non-backup accepted');
+if(RP.validateBackup(null).ok) throw new Error('null accepted');
+console.log('sweep2 logic ok');
+" >/dev/null 2>&1 \
+  && ok "reviewTopics / recovery workflow / validateBackup" \
+  || bad "sweep-2 logic failed"
+
+for id in topicInsights recoveryQueue recoveryBadge restoreBtn restoreFile; do
+  grep -q "id=\"$id\"" public/index.html && ok "wired: #$id" || bad "missing #$id"
+done
+grep -q "topic-row" public/styles.css \
+  && ok "topic-row styles" || bad "topic styles missing"
+grep -q "renderTopics\|renderRecovery\|validateBackup\|setRecoveryStatus" public/app.js \
+  && ok "app.js uses sweep-2 logic fns" || bad "app.js missing sweep-2 logic calls"
+
 kill $SRV 2>/dev/null; trap - EXIT; wait $SRV 2>/dev/null
 
 echo ""

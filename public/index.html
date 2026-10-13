@@ -83,6 +83,18 @@
       <p class="sub" id="responseLine"></p>
       <div id="trendTable"></div>
     </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Recovery queue</h2><span class="badge warn" id="recoveryBadge">—</span></div>
+      <p class="sub">1–2 star reviews need follow-up until the customer is won back — not just a reply. Move each through: <b>Open</b> → <b>Contacted</b> → <b>Resolved</b>.</p>
+      <div id="recoveryQueue"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>What customers mention</h2><span class="badge">offline insights</span></div>
+      <p class="sub">Topics auto-detected in your logged reviews, with the average rating for reviews that mention each one. Low averages point at what to fix first.</p>
+      <div id="topicInsights"></div>
+    </div>
   </section>
 
   <!-- GET REVIEWS -->
@@ -217,6 +229,8 @@
         <button class="btn" id="importBtn">Import customers</button>
         <button class="btn ghost" id="exportCsvBtn">Export CSV</button>
         <button class="btn ghost" id="exportBtn">Export JSON</button>
+        <button class="btn ghost" id="restoreBtn">Restore backup…</button>
+        <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
         <button class="btn ghost" id="clearBtn">Clear all data</button>
       </div>
       <div id="importMsg"></div>

@@ -218,3 +218,10 @@ footer { text-align: center; color: var(--muted); font-size: .82rem; padding: 1.
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- topic insights + recovery queue ---------- */
+.topic-row { display: flex; align-items: center; gap: .9rem; padding: .45rem 0; border-bottom: 1px solid var(--line); }
+.topic-row:last-child { border-bottom: 0; }
+.topic-name { flex: 0 0 130px; font-weight: 600; font-size: .9rem; }
+.topic-row .goalbar { flex: 1; }
+.topic-meta { flex: 0 0 auto; font-size: .82rem; color: var(--muted); white-space: nowrap; }

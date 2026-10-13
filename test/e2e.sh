@@ -156,6 +156,39 @@ if(!t.email.includes('Sunny Side Bakery')||!t.email.includes('http://localhost:$
 console.log('flow8 ok');" >/dev/null 2>&1 \
   && ok "rating trend / reply tracking / snippets / ask templates" || bad "flow 8 failed"
 
+echo "== e2e flow 9: recovery queue + topic insights + backup validation =="
+node -e "
+const RP=require('./lib/logic');
+// Realistic month of logs: two angry reviews, a few happy ones
+const revs=[
+  {stars:5,text:'The staff were wonderful and the food was incredible.',at:'2026-10-01T12:00:00.000Z',replied:'2026-10-01T13:00:00.000Z'},
+  {stars:1,text:'Terrible service, waited an hour, never coming back.',at:'2026-10-03T12:00:00.000Z',replied:'2026-10-03T14:00:00.000Z'},
+  {stars:2,text:'Cold food, slow kitchen, overpriced menu.',at:'2026-10-05T12:00:00.000Z',replied:null},
+  {stars:5,text:'Best pizza in town, friendly team!',at:'2026-10-09T12:00:00.000Z',replied:'2026-10-09T12:30:00.000Z'}
+];
+// Owner works the queue: 1-star first, contacts then resolves it
+let q=RP.recoveryQueue(revs);
+if(q.length!==2||q[0].i!==1||q[1].i!==2) throw new Error('queue order: '+JSON.stringify(q.map(x=>x.i)));
+RP.setRecoveryStatus(revs,1,'contacted');
+RP.setRecoveryStatus(revs,1,'resolved');
+q=RP.recoveryQueue(revs);
+if(q.length!==1||q[0].i!==2) throw new Error('queue should hold only the remaining 2-star');
+// Topics surface the real problems: service/wait/price show low averages
+const topics=RP.reviewTopics(revs);
+const svc=topics.find(t=>t.topic==='Service');
+if(!svc||svc.avgStars>=3) throw new Error('service avg should be low: '+JSON.stringify(svc));
+if(topics[0].mentions<2) throw new Error('top topic needs 2+ mentions');
+// A previously-exported backup round-trips through validation
+const backup={customers:[{name:'Jo',email:'jo@x.com',phone:'',key:'jo@x.com'}],asks:{},reviews:revs,settings:{},drafts:[],snippets:[]};
+if(!RP.validateBackup(backup).ok) throw new Error('exported shape should validate');
+console.log('flow9 ok');" >/dev/null 2>&1 \
+  && ok "recovery queue workflow / topic insights / backup validation" || bad "flow 9 failed"
+
+# sweep-2 UI wiring present in served page
+dash=$(curl -sf "http://localhost:$PORT/")
+echo "$dash" | grep -q 'id="topicInsights"' && echo "$dash" | grep -q 'id="recoveryQueue"' && echo "$dash" | grep -q 'id="restoreBtn"' \
+  && ok "dashboard serves topic insights + recovery + restore UI" || bad "sweep-2 UI missing from served page"
+
 kill $SRV 2>/dev/null; trap - EXIT; wait $SRV 2>/dev/null
 
 echo ""
