@@ -22,6 +22,35 @@
     try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
   }
   function el(id) { return document.getElementById(id); }
+  // Copy text with graceful fallbacks: Clipboard API, then execCommand,
+  // then a visible failure so the button never silently does nothing
+  // (e.g. inside a sandboxed iframe where the clipboard is blocked).
+  function copyText(text, onDone) {
+    function done(ok) { if (onDone) onDone(ok); }
+    function legacyFallback() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        done(!!ok);
+      } catch (e) { done(false); }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          function () { done(true); },
+          function () { legacyFallback(); }
+        );
+      } else {
+        legacyFallback();
+      }
+    } catch (e) { legacyFallback(); }
+  }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -316,15 +345,18 @@
     renderQR(el('qrBox'), link);
 
     el('copyLinkBtn').onclick = function () {
-      navigator.clipboard.writeText(link).then(function () {
-        el('copyLinkBtn').textContent = 'Copied ✓';
-        setTimeout(function () { el('copyLinkBtn').textContent = 'Copy link'; }, 1500);
+      copyText(link, function (ok) {
+        el('copyLinkBtn').textContent = ok ? 'Copied ✓' : 'Blocked — copy link above manually';
+        setTimeout(function () { el('copyLinkBtn').textContent = 'Copy link'; }, 2500);
       });
     };
     el('openAskBtn').onclick = function () { window.open(link, '_blank'); };
     el('dlQrBtn').onclick = function () {
       var svg = el('qrBox').querySelector('svg');
-      if (!svg) return;
+      if (!svg) {
+        el('genError').innerHTML = '<p class="notice err">QR code is not available — regenerate the link above first.</p>';
+        return;
+      }
       state.campaigns.qrs++;
       persist();
       renderCampaignStrip();
@@ -348,15 +380,15 @@
     el('tplSms').textContent = t.sms;
     el('tplEmail').textContent = t.email;
     el('copyTplSms').onclick = function () {
-      navigator.clipboard.writeText(t.sms).then(function () {
-        el('copyTplSms').textContent = 'Copied ✓';
-        setTimeout(function () { el('copyTplSms').textContent = 'Copy SMS'; }, 1500);
+      copyText(t.sms, function (ok) {
+        el('copyTplSms').textContent = ok ? 'Copied ✓' : 'Blocked — select text above';
+        setTimeout(function () { el('copyTplSms').textContent = 'Copy SMS'; }, 2500);
       });
     };
     el('copyTplEmail').onclick = function () {
-      navigator.clipboard.writeText(t.email).then(function () {
-        el('copyTplEmail').textContent = 'Copied ✓';
-        setTimeout(function () { el('copyTplEmail').textContent = 'Copy email'; }, 1500);
+      copyText(t.email, function (ok) {
+        el('copyTplEmail').textContent = ok ? 'Copied ✓' : 'Blocked — select text above';
+        setTimeout(function () { el('copyTplEmail').textContent = 'Copy email'; }, 2500);
       });
     };
   }
@@ -404,7 +436,7 @@
     err.innerHTML = ''; out.innerHTML = '';
     var payload = {
       review: el('repText').value,
-      stars: parseInt(el('repStars').value, 10),
+      stars: parseInt(el('draftStars').value, 10),
       business: el('repBiz').value || state.settings.business || '',
       name: el('repName').value
     };
@@ -438,9 +470,9 @@
 
     out.querySelectorAll('[data-copy]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        navigator.clipboard.writeText(el(btn.dataset.copy).textContent).then(function () {
-          btn.textContent = 'Copied ✓';
-          setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+        copyText(el(btn.dataset.copy).textContent, function (ok) {
+          btn.textContent = ok ? 'Copied ✓' : 'Copy failed — select text manually';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
         });
       });
     });
@@ -473,9 +505,9 @@
         var parts = btn.dataset.dcopy.split('-');
         var d = state.drafts[parseInt(parts[0], 10)];
         if (!d) return;
-        navigator.clipboard.writeText(d[parts[1]] || '').then(function () {
-          btn.textContent = 'Copied ✓';
-          setTimeout(function () { btn.textContent = 'Copy ' + parts[1]; }, 1500);
+        copyText(d[parts[1]] || '', function (ok) {
+          btn.textContent = ok ? 'Copied ✓' : 'Copy failed — select text manually';
+          setTimeout(function () { btn.textContent = 'Copy ' + parts[1]; }, 2500);
         });
       });
     });
@@ -638,9 +670,9 @@
       btn.addEventListener('click', function () {
         var s = state.snippets[parseInt(btn.dataset.snipcopy, 10)];
         if (!s) return;
-        navigator.clipboard.writeText(s.text).then(function () {
-          btn.textContent = 'Copied ✓';
-          setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+        copyText(s.text, function (ok) {
+          btn.textContent = ok ? 'Copied ✓' : 'Copy failed — select text manually';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
         });
       });
     });
